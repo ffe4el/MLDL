@@ -29,7 +29,7 @@ scores = cross_validate(hgb, X_train, y_train, return_train_score=True, n_jobs=-
 hgb.fit(X_train, y_train)
 #permutation_importance는 특성을 하나씩 랜덤하게 섞어서 모델의 성능이 변화하는지를 관찰하여 어떤 특성이 중요한지 계산한다.
 #n_repeats 매개변수는 랜덤하게 섞을 횟수를 지정한다.
-result = permutation_importance(hgb, X_train, y_train, n_repeats=10, random_state=42, n_jobs=-1)
+result = permutation_importance(hgb, X_train, y_train, n_repeats=5, random_state=37, n_jobs=-1)
 print(result.importances_mean)
 
 #[0.08876275 0.23438522 0.08027708]
