@@ -2,7 +2,7 @@ import pandas as pd
 import os
 import numpy as np
 
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.linear_model import RidgeClassifier
 import lightgbm as lgb
 
@@ -13,6 +13,8 @@ from warnings import simplefilter
 
 from sklearn.model_selection import cross_validate
 from sklearn.model_selection import StratifiedKFold
+
+
 
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -125,6 +127,51 @@ def data_modeling_A():
 
     return model_A, A_X.columns
 
+def model_T_gridSearch():
+    df = pd.read_csv("Dataset/train.csv")
+    data_T = df[(df["PRODUCT_CODE"] == "T_31") | (df["PRODUCT_CODE"] == "O_31")]
+
+    lists = []
+    for a in make_col()[2]:
+        lists.append(int(a[2:]))
+    lists.sort()
+
+    cols = []  # 사용할 columns
+    for l in lists:
+        cols.append(f"X_{l}")
+
+    T_y = data_T["Y_Class"]
+    T_X = data_T.drop("Y_Class", axis=1)
+
+    X_train, X_test, y_train, y_test = train_test_split(T_X, T_y, test_size=0.3, random_state=42)
+
+    # 그리드서치(하이퍼파라미터튜닝ing)
+    model_T = RidgeClassifier(random_state=42)
+    ridge_params = {'max_iter': [3000], 'alpha': [0.1, 1, 2, 3, 4, 10, 30, 100, 200, 300, 400, 800, 900, 1000]}
+    # rmsle_score = metrics.make_scorer(rmsle, greater_is_better=False)
+
+    gs = GridSearchCV(estimator=model_T,
+                      param_grid=ridge_params,
+                      n_jobs=-1,
+                      error_score='raise')
+
+    gs.fit(X_train, y_train)
+
+    # 교차검증에서 최적의 하이퍼파라미터를 찾으면 전체 훈련 세트로 모델을 다시 만들어야한다.
+    # -> 그리드서치는 best_estimator_을 통해 자동으로 다시 모델을 훈련할 수 있다.
+    dt = gs.best_estimator_
+    print(dt.score(X_train, y_train))
+
+    # 그리드 서치에서 찾은 최적의 매개변수는 best_params에 저장되어있다.
+    print(gs.best_params_)
+
+    # 각 매개변수에서 수행한 교차 검증의 평균 점수는 mean_test_score에 저장되어있다.
+    print(gs.cv_results_['mean_test_score'])
+
+    # 넘파이의 argmax()를 통해 가장 큰 값의 인덱스를 추출하고
+    # 이 인덱스를 사용하여 params 키에 저장된 매개변수를 출력할 수 있다.
+    best_index = np.argmax(gs.cv_results_['mean_test_score'])
+    print(gs.cv_results_['params'][best_index])
 
 def data_modeling_T():
     df = pd.read_csv("Dataset/train.csv")
@@ -143,17 +190,19 @@ def data_modeling_T():
     T_X = data_T[cols]
 
     X_train, X_test, y_train, y_test = train_test_split(T_X, T_y, test_size=0.3, random_state=42)
-
     model_T = RidgeClassifier(random_state=42)
     model_T.fit(X_train, y_train)
     prediction = model_T.predict(X_test)
 
+
+    #혼동행렬과 정답률
     print(confusion_matrix(prediction, y_test))
     print(f"T_정답률:{accuracy_score(prediction, y_test):.3f}")
 
+
+    # 교차검증!!
     scores = cross_validate(model_T, X_train, y_train, cv=StratifiedKFold())
     print(np.mean(scores['test_score']))
-
     # n_splits매개변수는 몇(k)폴드 교차 검증 할지를 정한다.
     splitter = StratifiedKFold(n_splits=10, shuffle=True, random_state=42)
     scores = cross_validate(model_T, X_train, y_train, cv=splitter)
@@ -217,12 +266,14 @@ def predict_testset():
 
 
 def main():
+    seperate_code()
     # corr_matrix()
     # seperate_code()
     # # predict_testset()
     # # predict_testset()
-    data_modeling_A()
+    # data_modeling_A()
     # data_modeling_T()
+    model_T_gridSearch()
 
 
 
